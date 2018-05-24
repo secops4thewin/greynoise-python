@@ -1,0 +1,112 @@
+# Security Trails Python API
+import requests
+import logging
+import json
+
+# Establish Logging.
+logging.basicConfig()
+logger = logging.getLogger('greynoise')
+
+
+class greyNoise():
+    def __init__(
+        self,
+        api_key,
+        base_url='https://enterprise.api.greynoise.io/',
+        prettyPrint=False
+    ):
+        """
+        Greynoise Python Wrapper.  
+
+        Available Functions
+        - test_connect              Provides a method to test connectivity
+        - quick_ip                  Check whether a given IP address is “Internet background noise”, or has been observed scanning or
+                                    attacking devices across the Internet.
+       
+        Usage:
+        s = greyNoise(api_key='yourapikey')
+
+        s.function_name(valid_variables)
+        """
+
+        # Create Requests Session
+        self.session = requests.session()
+        # Add API Key to Header
+        self.session.headers.update("APIKEY:" + api_key)
+        # Create Base URL variable to allow for updates in the future
+        self.base_url = base_url
+        # Create API Key variable to pass into each request
+        self.api_key = api_key
+        # Create Pretty Print variable
+        self.prettyPrint = prettyPrint
+
+        # Check to see if API Key is present
+        if self.api_key is None:
+            raise Exception("No API Key present")
+
+        # Initiate Ping to Security Trails
+        self.ping = self.session.get(base_url + "ping")
+
+        # Request failed returning false and logging an error
+        if self.ping.status_code != 200:
+            logger.error(
+                "Error connecting to Greynoise, error message: {}".format(
+                    self.ping.text))
+
+    def parse_output(self, input):
+        # If prettyPrint set to False
+        if self.prettyPrint is False:
+            return json.dumps(input)
+        # If prettyPrint set to True
+        elif self.prettyPrint is True:
+            print json.dumps(input, indent=4)
+
+    def test_connect(self):
+        """
+        Function:   Test ping to Grey Noise API
+
+        No parameters: Relies on API key being set.  Returns True for successful connection and False for unsuccessful.
+
+        Usage:
+        s = greyNoise(api_key='yourapikey')
+        s.test_connect()
+        """
+
+        endpoint = '{}/ping/'.format(self.base_url)
+        # Make connection to the ping endpoint
+        r = self.session.get(endpoint)
+        # Specify Output as JSON
+        output = r.json()
+        # If the request is successful
+        if r.status_code == 200:
+            return True
+        # Request failed returning false and logging an error
+        else:
+            logger.warning(
+                "get_domain:Error with query to GreyNoise, error message: {}".format(
+                    output['message']))
+            return False
+
+    def get_domain(self, domain):
+        """
+        Function:   Domain information endpoints that return various information about domains.
+
+        :param domain: Required - The domain that you are requesting
+
+        Usage:
+        s = greyNoise(api_key='yourapikey')
+        s.get_domain("netflix.com")
+        """
+
+        endpoint = '{}/domain/{}'.format(self.base_url, domain)
+        r = self.session.get(endpoint)
+        output = r.json()
+        # If the request is successful
+        if r.status_code == 200:
+            return self.parse_output(r.json())
+        # Request failed returning false and logging an error
+        else:
+            logger.warning(
+                "get_domain:Error with query to Security Trails, error message: {}".format(
+                    output['message']))
+            return False
